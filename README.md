@@ -55,3 +55,8 @@ SF_DOMAIN=login
 ### Step 4: MongoDB Configuration
 - Add your public IP address in MongoDB Atlas → Network Access → IP Access List.
 - Ensure the database contains the Ordenes collection.
+
+## Run the program
+```
+python main.py
+```
