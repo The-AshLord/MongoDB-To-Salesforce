@@ -9,22 +9,21 @@ load_dotenv()
 
 # ---------- CONFIG LOGS ----------
 logging.basicConfig(
-    filename="etl_salesforce.log",
+    filename="mongo_a_salesforce.log",
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-# ---------- CONEXIÓN MONGO ----------
+# ------------ MONGODB ------------
 MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = "OrdenesTest"
 COLLECTION_NAME = "Ordenes"
-def conectar_mongo():
+def mongo_connection():
     logging.info("Conectado a MongoDB")
     return MongoClient(MONGO_URI)
     
-
-# ---------- CONEXIÓN SALESFORCE ----------
-def conectar_salesforce():
+# ----------- SALESFORCE ----------
+def salesforce_connection():
     try:
         sf = Salesforce(
             username=os.getenv("SF_USERNAME"),
@@ -39,7 +38,7 @@ def conectar_salesforce():
         logging.error(f"Error Salesforce: {e}")
         raise
 
-# ---------- TRANSFORMACIONES ----------
+# -------- DATA TRANSFORMATION --------
 def map_stage(status):
     mapping = {
         "new": "Prospecting",
@@ -65,7 +64,7 @@ def safe_float(value):
         return 0.0
 
 # ---------- ETL ----------
-def transformar_orden(doc):
+def order_conversion(doc):
     if not isinstance(doc, dict):
         return None
 
@@ -78,33 +77,34 @@ def transformar_orden(doc):
     return {
         "External_Id__c": str(doc.get("shipmentid", "")),
         "TrackingNumber__c": str(doc.get("shipment_id", "")),
-        "Name": name_union, #doc.get("customer") or "Sin Cliente",
+        "Name": name_union, 
         "CloseDate": format_date(doc.get("date")),
         "Amount": safe_float(edi.get("flat_rate")),
         "StageName": map_stage(doc.get("status")),
+        "OrderNumber__c": str(doc.get("load_number", "")),
         "Description": doc.get("description") or ""
     }
 
-def extraer_y_transformar():
-    client = conectar_mongo()
+def extraction():
+    client = mongo_connection()
     db = client[DB_NAME]
     collection = db[COLLECTION_NAME]
-    oportunidades = []
+    opportunities = []
 
     try:
         for doc in collection.find({}):
-            opp = transformar_orden(doc)
+            opp = order_conversion(doc)
             if opp and opp["External_Id__c"]:
-                oportunidades.append(opp)
+                opportunities.append(opp)
 
     except Exception as e:
         logging.error(f"Error ETL: {e}")
 
     finally:
         client.close()
-        logging.info("Mongo cerrado")
+        logging.info("MongoDB cerrado")
 
-    return oportunidades
+    return opportunities
 
 # ---------- UPSERT ----------
 def upsert_opportunity(sf, opp):
@@ -123,14 +123,13 @@ def upsert_opportunity(sf, opp):
     except Exception as e:
         logging.error(f"Error Upsert {ext_id}: {e}")
 
-# ---------- MAIN ----------
 def main():
-    sf = conectar_salesforce()
-    oportunidades = extraer_y_transformar()
+    sf = salesforce_connection()
+    opportunities = extraction()
 
-    logging.info(f"Total registros: {len(oportunidades)}")
+    logging.info(f"Total registros: {len(opportunities)}")
 
-    for opp in oportunidades:
+    for opp in opportunities:
         upsert_opportunity(sf, opp)
 
     logging.info("Proceso finalizado")
