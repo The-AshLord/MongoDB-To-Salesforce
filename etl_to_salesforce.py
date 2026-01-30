@@ -5,7 +5,7 @@ from datetime import datetime
 from simple_salesforce import Salesforce
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv() 
 
 # ---------- CONFIG LOGS ----------
 logging.basicConfig(
@@ -14,12 +14,10 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-# ---------- VARIABLES ----------
+# ---------- CONEXIÓN MONGO ----------
 MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = "OrdenesTest"
 COLLECTION_NAME = "Ordenes"
-
-# ---------- CONEXIÓN MONGO ----------
 def conectar_mongo():
     logging.info("Conectado a MongoDB")
     return MongoClient(MONGO_URI)
@@ -47,8 +45,8 @@ def map_stage(status):
         "new": "Prospecting",
         "process": "Qualification",
         "sent": "Proposal/Price Quote",
-        "won": "Closed Won",
-        "lost": "Closed Lost"
+        "finished": "Closed Won",
+        "returned": "Closed Lost"
     }
     return mapping.get((status or "").lower(), "Prospecting")
 
@@ -72,10 +70,15 @@ def transformar_orden(doc):
         return None
 
     edi = doc.get("edi") or {}
+    customer = doc.get("customer") or "SinCliente"
+    shipment = str(doc.get("shipmentid") or "SinID")
+
+    name_union = f"{customer} - {shipment}"
 
     return {
         "External_Id__c": str(doc.get("shipmentid", "")),
-        "Name": doc.get("customer") or "Sin Cliente",
+        "TrackingNumber__c": str(doc.get("shipment_id", "")),
+        "Name": name_union, #doc.get("customer") or "Sin Cliente",
         "CloseDate": format_date(doc.get("date")),
         "Amount": safe_float(edi.get("flat_rate")),
         "StageName": map_stage(doc.get("status")),
