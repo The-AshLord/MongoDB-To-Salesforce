@@ -60,3 +60,5 @@ SF_DOMAIN=login
 ```
 python main.py
 ```
+### Logs:
+The program automatically creates an additional `.log` file to store the process logs. Currently, the logs are only in Spanish. 
