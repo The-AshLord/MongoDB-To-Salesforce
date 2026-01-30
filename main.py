@@ -69,8 +69,8 @@ def order_conversion(doc):
         return None
 
     edi = doc.get("edi") or {}
-    customer = doc.get("customer") or "SinCliente"
-    shipment = str(doc.get("shipmentid") or "SinID")
+    customer = doc.get("customer") or "Without a client"
+    shipment = str(doc.get("shipmentid") or "Without ID")
 
     name_union = f"{customer} - {shipment}"
 
@@ -80,8 +80,12 @@ def order_conversion(doc):
         "Name": name_union, 
         "CloseDate": format_date(doc.get("date")),
         "Amount": safe_float(edi.get("flat_rate")),
+        "Advances__c": safe_float(edi.get("advances")),
         "StageName": map_stage(doc.get("status")),
         "OrderNumber__c": str(doc.get("load_number", "")),
+        "Office__c": str(doc.get("office", "")),
+        "Order_Type__c":str(doc.get("order_type", "")),
+        "Weight__c":str(edi.get("weight", "")),
         "Description": doc.get("description") or ""
     }
 
